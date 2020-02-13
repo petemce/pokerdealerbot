@@ -1,6 +1,8 @@
 # pokerdealerbot
 Slack bot that deals NLHE / PLO poker
 
+Original game idea taken from https://github.com/tiko23867/python3-poker
+
 It's very rough around the edges, doesn't do side pots or all in properly yet, coming very soon.
 
 Needs a legacy slack bot token as the new granular permission system doesn't seem to allow access to the realtime api, which this needs. export SLACK_BOT_TOKEN="xoxb...."
