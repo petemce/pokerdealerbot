@@ -279,6 +279,7 @@ async def bet_to_continue(web_client, user_id, channel_id, bet):
                 active_players[0].money = active_players[0].money - bet
                 active_players[0].bet = active_players[0].reraise
                 active_players[1].tocall = active_players[0].bet
+                active_players[1].canclose = True
                 await sendslack(
                     "<@%s> is next to act" % active_players[1].name,
                     web_client,
