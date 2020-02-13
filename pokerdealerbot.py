@@ -362,14 +362,18 @@ async def bet_to_close(web_client, user_id, channel_id, bet):
                 "<@%s> is next to act" % active_players[1].name, web_client, channel_id
             )
             await sendslack("pot is %s" % tab.pot, web_client, channel_id)
-            active_players += [active_players.pop(0)]
+            #active_players += [active_players.pop(0)]
             for name in active_players:
                 name.bet = 0
                 name.tocall = 0
                 name.reraise = 0
             tab.turn += 1
             tab.highbet = 0
-            active_players[1].canclose = True
+            if not active_players[1].dealer:
+                active_players += [active_players.pop(0)]
+                active_players[1].canclose = True
+          
+
 
         elif tab.turn == 1:
             print("stage6")
@@ -386,14 +390,16 @@ async def bet_to_close(web_client, user_id, channel_id, bet):
                 "<@%s> is next to act" % active_players[1].name, web_client, channel_id
             )
             await sendslack("pot is %s" % tab.pot, web_client, channel_id)
-            active_players += [active_players.pop(0)]
+            #active_players += [active_players.pop(0)]
             for name in active_players:
                 name.bet = 0
                 name.tocall = 0
                 name.reraise = 0
             tab.turn += 1
             tab.highbet = 0
-            active_players[1].canclose = True
+            if not active_players[1].dealer:
+                active_players += [active_players.pop(0)]
+                active_players[1].canclose = True
 
         elif tab.turn == 2:
             print("stage7")
@@ -417,7 +423,10 @@ async def bet_to_close(web_client, user_id, channel_id, bet):
                 name.reraise = 0
             tab.turn += 1
             tab.highbet = 0
-            active_players[1].canclose = True
+            if not active_players[1].dealer:
+                active_players += [active_players.pop(0)]
+                active_players[1].canclose = True
+
 
         elif tab.turn == 3:
             await sendslack("<@%s> calls." % user_id, web_client, channel_id)
