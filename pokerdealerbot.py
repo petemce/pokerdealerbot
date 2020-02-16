@@ -33,6 +33,7 @@ class Player(object):
         self.tocall = 0
         self.reraise = 0
         self.canclose = False
+        self.cardswords = None
 
 
 class Table(object):
@@ -44,7 +45,6 @@ class Table(object):
         self.sidepot = 0
         self.highbet = 0
         self.plo = False
-
 
 async def sendslack(text, web_client: slack.WebClient, channel):
     await web_client.chat_postMessage(
@@ -62,29 +62,23 @@ async def create_player_list(web_client, user_id, channel_id, num_players, plo=F
         print("added %s to list" % user_id)
         print(len(player_list[channel_id]))
 
-    elif user_id not in player_list[channel_id]:
-        player = Player(user_id, newMoney)
-        player_list[channel_id].append(player)
-        if len(player_list[channel_id]) == num_players:
-            if plo:
-                print("setting uo plo")
-                await set_up_game(web_client, channel_id, plo=True)
-            else:
-                await set_up_game(web_client, channel_id, plo=False)
-            print("added %s to list - 1" % user_id)
-            print(len(player_list[channel_id]))
-
-    elif (
-        user_id not in player_list[channel_id]
-        and len(player_list[channel_id]) > num_players
-    ):
-        player = Player(user_id, newMoney)
-        player_list[channel_id].append(player)
-        # await set_up_game(web_client, channel_id)
-        print("added %s to list - 2" % user_id)
-        print(len(player_list[channel_id]))
-
-
+    else:
+        if channel_id not in tab_list:
+            for name in player_list[channel_id]:
+                print(name.name)
+                if user_id not in name.name:
+                    print("Adding player to list")
+                    player = Player(user_id, newMoney)
+                    player_list[channel_id].append(player)
+                    if len(player_list[channel_id]) == num_players:
+                        if plo:
+                            print("setting uo plo")
+                            await set_up_game(web_client, channel_id, plo=True)
+                        else:
+                            print("setting up nlhe")
+                            await set_up_game(web_client, channel_id, plo=False)
+   
+   
 async def set_up_game(web_client, channel_id, plo=False):
     players = player_list[channel_id]
     if channel_id not in tab_list:
@@ -214,6 +208,7 @@ async def handle_bet(web_client, text, user_id, channel_id, amount):
     print(len(active_players))
     if active_players[0].name == user_id:
         print("received bet for %d from %s" % (bet, user_id))
+        print(active_players[0].canclose, "pish")
         if (
             bet >= 1
             and bet <= 199
@@ -308,6 +303,7 @@ async def bet_to_continue(web_client, user_id, channel_id, bet):
             await sendslack("%d to call" % tab.highbet, web_client, channel_id)
             await sendslack("pot is %s" % tab.pot, web_client, channel_id)
             active_players += [active_players.pop(0)]
+            active_players[0].canclose = True
             return
 
     elif bet == tab.highbet:
@@ -485,63 +481,79 @@ async def bet_to_close(web_client, user_id, channel_id, bet):
                         await set_up_game(web_client, channel_id)
 
 
-async def findsubsets(s, n):
-    return list(itertools.combinations(s, n))
+async def find_best_plo_hand(user_id, channel_id):
+    active_players = player_list[channel_id]
+    tab = tab_list[channel_id]["table"]
+    evaluator = Evaluator()
+    board = tab.cards
+    print(board, "board")
+    hand = [x.cards for x in active_players if x.name == user_id]
+    print(hand, "hand")
+    allboardtuple = list(itertools.combinations(board, 3))
+    print(allboardtuple)
+    allboardlist = [list(x) for x in allboardtuple]
+    print(allboardlist)
+    allhandtuple = list(itertools.combinations(hand, 2))
+    print(allhandtuple, "allhandtuple")
+    allhandlist = [list(x) for x in allhandtuple]
+    print(allhandlist, "allhandlist")
+    fullsetlist = []
+    print("just before loop")
+    for i in allboardlist:
+        print(i, "inside loop i")
+        for j in allhandlist:
+            print(j, "inside loop j")
+            fullsetlist.append(evaluator.evaluate(i, j))
+
+    fullsetlist.sort()
+    return fullsetlist[0]
 
 
 async def calculate_plo(web_client, user_id, channel_id):
     active_players = player_list[channel_id]
     tab = tab_list[channel_id]["table"]
-    deck = tab_list[channel_id]["deck"]
     evaluator = Evaluator()
-    allboard = await findsubsets(tab.cards, 3)
-    p0allcard = await findsubsets(active_players[0].cards, 2)
-    p1allcard = await findsubsets(active_players[1].cards, 2)
-    boardlist = [list(x) for x in allboard]
-    tmpp0list = [list(x) for x in p0allcard]
-    tmpp1list = [list(x) for x in p1allcard]
-    p0list = []
-    p1list = []
-    for i in boardlist:
-        for j in tmpp0list:
-            p0list.append(evaluator.evaluate(i, j))
+    
+    largest = [-1, None]
+    for name in active_players:
+        high = await find_best_plo_hand(name.name, channel_id)
+        rank = evaluator.get_rank_class(high)
+        name.cardswords = evaluator.class_to_string(rank)
+        if high > largest[0]:
+            largest = [high, name.name]
+        elif high == largest[0]:
+            largest = largest.append(high, name.name)
 
-    for i in boardlist:
-        for j in tmpp1list:
-            p1list.append(evaluator.evaluate(i, j))
+    for name in active_players:
+        pic = Card.print_pretty_cards(name.cards)
+        await sendslack("<@%s> shows %s" % (name.name, pic), web_client, channel_id)
 
-    p0list.sort()
-    p1list.sort()
-
-    p0numhand = evaluator.get_rank_class(p0list[0])
-    p0hand = evaluator.class_to_string(p0numhand)
-
-    p1numhand = evaluator.get_rank_class(p1list[0])
-    p1hand = evaluator.class_to_string(p1numhand)
-
-    for p in active_players:
-        pic = Card.print_pretty_cards(p.cards)
-        await sendslack("<@%s> shows %s" % (p.name, pic), web_client, channel_id)
-
-    await sendslack(
-        "<@%s> has %s" % (active_players[0].name, p0hand), web_client, channel_id
-    )
-    await sendslack(
-        "<@%s> has %s" % (active_players[1].name, p1hand), web_client, channel_id
-    )
-
-    if p0list[0] > p1list[0]:
+    for name in active_players:
         await sendslack(
-            "<@%s> wins %d" % (active_players[0].name, tab.pot), web_client, channel_id
+        "<@%s> has %s" % (name.name, name.cardswords), web_client, channel_id
         )
-        active_players[0].money += tab.pot
+
+    if len(largest) == 1:
+        await sendslack(
+            "<@%s> wins %d" % (largest[1], tab.pot), web_client, channel_id
+        )
+        for name in active_players:   
+            if name.name == largest[1]: 
+                name.money += tab.pot
     else:
-        await sendslack(
-            "<@%s> wins %d" % (active_players[1].name, tab.pot), web_client, channel_id
-        )
-        active_players[1].money += tab.pot
+        for name in largest:
+            money_won = tab.pot / len(largest)
+            await sendslack(
+            "<@%s> wins %d" % (name[1], money_won), web_client, channel_id
+            )
+            for name in active_players:   
+                if name.name == largest[1]: 
+                    name.money += money_won
+           
 
-    if len(active_players) == 2:
+        
+
+    if len(active_players) > 1:
         if active_players[0].money != 0 and active_players[1].money != 0:
             if active_players[1].dealer:
                 active_players += [active_players.pop(0)]
