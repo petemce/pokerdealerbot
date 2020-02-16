@@ -361,8 +361,6 @@ async def bet_to_close(web_client, user_id, channel_id, bet):
                 "<@%s> calls. dealing turn:" % user_id, web_client, channel_id
             )
             await sendslack(tabcards, web_client, channel_id)
-            if len(active_players) == 2 and not active_players[0].dealer:
-                active_players += [active_players.pop(0)]
             await sendslack(
                 "<@%s> is next to act" % active_players[1].name, web_client, channel_id
             )
@@ -377,6 +375,7 @@ async def bet_to_close(web_client, user_id, channel_id, bet):
             if not active_players[1].dealer:
                 active_players += [active_players.pop(0)]
                 active_players[1].canclose = True
+            active_players[1].canclose = True
 
         elif tab.turn == 2:
             print("stage7")
