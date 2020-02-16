@@ -62,23 +62,23 @@ async def create_player_list(web_client, user_id, channel_id, num_players, plo=F
         print("added %s to list" % user_id)
         print(len(player_list[channel_id]))
 
-    else:
-        if channel_id not in tab_list:
-            for name in player_list[channel_id]:
-                print(name.name)
-                if user_id not in name.name:
-                    print("Adding player to list")
-                    player = Player(user_id, newMoney)
-                    player_list[channel_id].append(player)
-                    if len(player_list[channel_id]) == num_players:
-                        if plo:
-                            print("setting uo plo")
-                            await set_up_game(web_client, channel_id, plo=True)
-                        else:
-                            print("setting up nlhe")
-                            await set_up_game(web_client, channel_id, plo=False)
+    
+    elif channel_id not in tab_list:
+        for name in player_list[channel_id]:
+            print(name.name)
+            if user_id not in name.name:
+                print("Adding player to list")
+                player = Player(user_id, newMoney)
+                player_list[channel_id].append(player)
+                if len(player_list[channel_id]) == num_players:
+                    if plo:
+                        print("setting uo plo")
+                        await set_up_game(web_client, channel_id, plo=True)
+                    else:
+                        print("setting up nlhe")
+                        await set_up_game(web_client, channel_id, plo=False)
    
-   
+
 async def set_up_game(web_client, channel_id, plo=False):
     players = player_list[channel_id]
     if channel_id not in tab_list:
@@ -98,6 +98,7 @@ async def set_up_game(web_client, channel_id, plo=False):
     for name in players:
         if plo:
             name.cards.extend(deck.draw(4))
+
         else:
             print("nlhe")
             name.cards.extend(deck.draw(2))
@@ -105,32 +106,12 @@ async def set_up_game(web_client, channel_id, plo=False):
         pic = Card.print_pretty_cards(name.cards)
         await sendslack(pic, web_client, name.name)
 
+
     if len(players) == 2:
         i = random.randint(1, 2)
         if i == 1:
             players += [players.pop(0)]
         await start_heads_up(web_client, channel_id)
-
-    if len(players) == 3:
-        await sendslack("Starting new game...", web_client, channel_id)
-        await sendslack("Starting stacks are %d" % newMoney, web_client, channel_id)
-        await sendslack(
-            "Big blind is %d, small blind is %d" % (bigblind, smallblind),
-            web_client,
-            channel_id,
-        )
-        players[0].dealer = True
-        players[1].bet = smallblind
-        players[1].money = players[1].money - smallblind
-        players[1].tocall = smallblind
-        players[2].bet = bigblind
-        players[2].money = players[2].money - bigblind
-        tab.pot = tab.pot + players[1].bet + players[2].bet
-        tab.highbet = bigblind
-        await sendslack(
-            "<@%s> is first to act" % players[0].name, web_client, channel_id
-        )
-        await sendslack("%d to call" % bigblind, web_client, channel_id)
 
 
 async def start_heads_up(web_client, channel_id):
