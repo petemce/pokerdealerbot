@@ -61,8 +61,7 @@ async def create_player_list(web_client, user_id, channel_id, num_players, plo=F
         player_list[channel_id].append(player)
         print("added %s to list" % user_id)
         print(len(player_list[channel_id]))
-
-    
+  
     elif channel_id not in tab_list:
         for name in player_list[channel_id]:
             print(name.name)
@@ -98,14 +97,12 @@ async def set_up_game(web_client, channel_id, plo=False):
     for name in players:
         if plo:
             name.cards.extend(deck.draw(4))
-
         else:
             print("nlhe")
             name.cards.extend(deck.draw(2))
         print("got to cards bit")
         pic = Card.print_pretty_cards(name.cards)
         await sendslack(pic, web_client, name.name)
-
 
     if len(players) == 2:
         i = random.randint(1, 2)
@@ -350,8 +347,6 @@ async def bet_to_close(web_client, user_id, channel_id, bet):
                 active_players += [active_players.pop(0)]
                 active_players[1].canclose = True
           
-
-
         elif tab.turn == 1:
             print("stage6")
             tab.cards.append(deck.draw(1))
@@ -402,7 +397,6 @@ async def bet_to_close(web_client, user_id, channel_id, bet):
             if not active_players[1].dealer:
                 active_players += [active_players.pop(0)]
                 active_players[1].canclose = True
-
 
         elif tab.turn == 3:
             await sendslack("<@%s> calls." % user_id, web_client, channel_id)
@@ -460,34 +454,23 @@ async def bet_to_close(web_client, user_id, channel_id, bet):
                             name.bet = 0
                         await set_up_game(web_client, channel_id)
 
-
 async def find_best_plo_hand(user_id, channel_id):
     active_players = player_list[channel_id]
     tab = tab_list[channel_id]["table"]
     evaluator = Evaluator()
     board = tab.cards
-    print(board, "board")
     hand = [x.cards for x in active_players if x.name == user_id]
-    print(hand, "hand")
     allboardtuple = list(itertools.combinations(board, 3))
-    print(allboardtuple)
     allboardlist = [list(x) for x in allboardtuple]
-    print(allboardlist)
     allhandtuple = list(itertools.combinations(hand, 2))
-    print(allhandtuple, "allhandtuple")
     allhandlist = [list(x) for x in allhandtuple]
-    print(allhandlist, "allhandlist")
     fullsetlist = []
-    print("just before loop")
     for i in allboardlist:
-        print(i, "inside loop i")
         for j in allhandlist:
-            print(j, "inside loop j")
             fullsetlist.append(evaluator.evaluate(i, j))
 
     fullsetlist.sort()
     return fullsetlist[0]
-
 
 async def calculate_plo(web_client, user_id, channel_id):
     active_players = player_list[channel_id]
