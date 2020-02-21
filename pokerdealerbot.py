@@ -545,22 +545,14 @@ async def calculate_plo(web_client, user_id, channel_id):
         await sendslack(
             "<@%s> wins %d" % (active_players[0].name, tab.pot), web_client, channel_id
         )
-        name.money += tab.pot
-    elif active_players[0].score == active_players[1].score:
-        for name in active_players:
-            money_won = tab.pot / 2
-            await sendslack(
-            "<@%s> wins %d" % (name.name, money_won), web_client, channel_id
-            )
-            name.money += money_won
+        active_players[0].money += tab.pot
 
     else:
         await sendslack(
             "<@%s> wins %d" % (active_players[1].name, tab.pot), web_client, channel_id
         )
         active_players[1].money += tab.pot
-
-        
+       
 
     if len(active_players) > 1:
         if active_players[0].money != 0 and active_players[1].money != 0:
@@ -576,6 +568,7 @@ async def calculate_plo(web_client, user_id, channel_id):
                 name.tocall = 0
                 name.dealer = False
                 name.bet = 0
+                name.canclose = False
             await set_up_game(web_client, channel_id, plo=True)
 
 
