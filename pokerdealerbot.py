@@ -547,7 +547,7 @@ async def calculate_plo(web_client, user_id, channel_id):
         "<@%s> has %s" % (name.name, name.cardswords), web_client, channel_id
         )
     
-    if active_players[0].score > active_players[1].score:
+    if active_players[0].score < active_players[1].score:
         await sendslack(
             "<@%s> wins %d" % (active_players[0].name, tab.pot), web_client, channel_id
         )
