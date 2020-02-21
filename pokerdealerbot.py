@@ -47,6 +47,7 @@ class Table(object):
         self.highbet = 0
         self.plo = False
 
+
 async def sendslack(text, web_client: slack.WebClient, channel):
     await web_client.chat_postMessage(
         channel=channel, icon_emoji=":robot_face:", username="pokerbot", text=text
@@ -365,7 +366,7 @@ async def bet_to_close(web_client, user_id, channel_id, bet):
             await sendslack(tabcards, web_client, channel_id)
             if active_players[0].dealer:
                 active_players += [active_players.pop(0)]
-                
+
             await sendslack(
                 "<@%s> is next to act" % active_players[0].name, web_client, channel_id
             )
@@ -378,8 +379,6 @@ async def bet_to_close(web_client, user_id, channel_id, bet):
             tab.highbet = 0
             active_players[0].canclose = False
             active_players[1].canclose = True
-          
-
 
         elif tab.turn == 1:
             print("stage6")
@@ -392,7 +391,7 @@ async def bet_to_close(web_client, user_id, channel_id, bet):
             await sendslack(tabcards, web_client, channel_id)
             if active_players[0].dealer:
                 active_players += [active_players.pop(0)]
-            
+
             await sendslack(
                 "<@%s> is next to act" % active_players[0].name, web_client, channel_id
             )
@@ -405,7 +404,6 @@ async def bet_to_close(web_client, user_id, channel_id, bet):
             tab.highbet = 0
             active_players[0].canclose = False
             active_players[1].canclose = True
-                
 
         elif tab.turn == 2:
             print("stage7")
@@ -413,17 +411,17 @@ async def bet_to_close(web_client, user_id, channel_id, bet):
             print(tab.cards)
             tabcards = Card.print_pretty_cards(tab.cards)
             await sendslack(
-                "<@%s> calls. dealing river:" % user_id, web_client, channel_id 
+                "<@%s> calls. dealing river:" % user_id, web_client, channel_id
             )
             await sendslack(tabcards, web_client, channel_id)
             if active_players[0].dealer:
                 active_players += [active_players.pop(0)]
-                
+
             await sendslack(
                 "<@%s> is next to act" % active_players[0].name, web_client, channel_id
             )
             await sendslack("pot is %s" % tab.pot, web_client, channel_id)
-        
+
             for name in active_players:
                 name.bet = 0
                 name.tocall = 0
@@ -432,7 +430,6 @@ async def bet_to_close(web_client, user_id, channel_id, bet):
             tab.highbet = 0
             active_players[0].canclose = False
             active_players[1].canclose = True
-
 
         elif tab.turn == 3:
             await sendslack("<@%s> calls." % user_id, web_client, channel_id)
@@ -517,9 +514,8 @@ async def find_best_plo_hand(user_id, channel_id):
         for j in allhandlist:
             print(j, "inside loop j")
             fullsetlist.append(evaluator.evaluate(i, j))
-    #for allboardlist, allhandlist in zip(allboardlist, allhandlist):
+    # for allboardlist, allhandlist in zip(allboardlist, allhandlist):
     #   fullsetlist.append(evaluator.evaluate(allboardlist, allhandlist))
-
 
     fullsetlist.sort()
     return fullsetlist[0]
@@ -529,14 +525,13 @@ async def calculate_plo(web_client, user_id, channel_id):
     active_players = player_list[channel_id]
     tab = tab_list[channel_id]["table"]
     evaluator = Evaluator()
-    
+
     for name in active_players:
         high = await find_best_plo_hand(name.name, channel_id)
         print(high, name.name)
         rank = evaluator.get_rank_class(high)
         name.cardswords = evaluator.class_to_string(rank)
         name.score = high
-        
 
     for name in active_players:
         pic = Card.print_pretty_cards(name.cards)
@@ -544,9 +539,9 @@ async def calculate_plo(web_client, user_id, channel_id):
 
     for name in active_players:
         await sendslack(
-        "<@%s> has %s" % (name.name, name.cardswords), web_client, channel_id
+            "<@%s> has %s" % (name.name, name.cardswords), web_client, channel_id
         )
-    
+
     if active_players[0].score < active_players[1].score:
         await sendslack(
             "<@%s> wins %d" % (active_players[0].name, tab.pot), web_client, channel_id
@@ -558,7 +553,6 @@ async def calculate_plo(web_client, user_id, channel_id):
             "<@%s> wins %d" % (active_players[1].name, tab.pot), web_client, channel_id
         )
         active_players[1].money += tab.pot
-       
 
     if len(active_players) > 1:
         if active_players[0].money != 0 and active_players[1].money != 0:
