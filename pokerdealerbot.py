@@ -34,6 +34,7 @@ class Player(object):
         self.reraise = 0
         self.canclose = False
         self.cardswords = None
+        self.score = 0
 
 
 class Table(object):
@@ -510,6 +511,9 @@ async def find_best_plo_hand(user_id, channel_id):
         for j in allhandlist:
             print(j, "inside loop j")
             fullsetlist.append(evaluator.evaluate(i, j))
+    #for allboardlist, allhandlist in zip(allboardlist, allhandlist):
+    #   fullsetlist.append(evaluator.evaluate(allboardlist, allhandlist))
+
 
     fullsetlist.sort()
     return fullsetlist[0]
@@ -520,15 +524,13 @@ async def calculate_plo(web_client, user_id, channel_id):
     tab = tab_list[channel_id]["table"]
     evaluator = Evaluator()
     
-    largest = [-1, None]
     for name in active_players:
         high = await find_best_plo_hand(name.name, channel_id)
+        print(high, name.name)
         rank = evaluator.get_rank_class(high)
         name.cardswords = evaluator.class_to_string(rank)
-        if high > largest[0]:
-            largest = [high, name.name]
-        elif high == largest[0]:
-            largest = largest.append(high, name.name)
+        name.score = high
+        
 
     for name in active_players:
         pic = Card.print_pretty_cards(name.cards)
@@ -538,24 +540,25 @@ async def calculate_plo(web_client, user_id, channel_id):
         await sendslack(
         "<@%s> has %s" % (name.name, name.cardswords), web_client, channel_id
         )
-
-    if len(largest) == 1:
+    
+    if active_players[0].score > active_players[1].score:
         await sendslack(
-            "<@%s> wins %d" % (largest[1], tab.pot), web_client, channel_id
+            "<@%s> wins %d" % (active_players[0].name, tab.pot), web_client, channel_id
         )
-        for name in active_players:   
-            if name.name == largest[1]: 
-                name.money += tab.pot
-    else:
-        for name in largest:
-            money_won = tab.pot / len(largest)
+        name.money += tab.pot
+    elif active_players[0].score == active_players[1].score:
+        for name in active_players:
+            money_won = tab.pot / 2
             await sendslack(
-            "<@%s> wins %d" % (name[1], money_won), web_client, channel_id
+            "<@%s> wins %d" % (name.name, money_won), web_client, channel_id
             )
-            for name in active_players:   
-                if name.name == largest[1]: 
-                    name.money += money_won
-           
+            name.money += money_won
+
+    else:
+        await sendslack(
+            "<@%s> wins %d" % (active_players[1].name, tab.pot), web_client, channel_id
+        )
+        active_players[1].money += tab.pot
 
         
 
