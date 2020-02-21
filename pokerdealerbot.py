@@ -61,22 +61,29 @@ async def create_player_list(web_client, user_id, channel_id, num_players, plo=F
         player_list[channel_id].append(player)
         print("added %s to list" % user_id)
         print(len(player_list[channel_id]))
-  
-    elif channel_id not in tab_list:
-        for name in player_list[channel_id]:
-            print(name.name)
-            if user_id not in name.name:
-                print("Adding player to list")
-                player = Player(user_id, newMoney)
-                player_list[channel_id].append(player)
-                if len(player_list[channel_id]) == num_players:
-                    if plo:
-                        print("setting uo plo")
-                        await set_up_game(web_client, channel_id, plo=True)
-                    else:
-                        print("setting up nlhe")
-                        await set_up_game(web_client, channel_id, plo=False)
-   
+
+    elif user_id not in player_list[channel_id]:
+        player = Player(user_id, newMoney)
+        player_list[channel_id].append(player)
+        if len(player_list[channel_id]) == num_players:
+            if plo:
+                print("setting uo plo")
+                await set_up_game(web_client, channel_id, plo=True)
+            else:
+                await set_up_game(web_client, channel_id, plo=False)
+            print("added %s to list - 1" % user_id)
+            print(len(player_list[channel_id]))
+
+    elif (
+        user_id not in player_list[channel_id]
+        and len(player_list[channel_id]) > num_players
+    ):
+        player = Player(user_id, newMoney)
+        player_list[channel_id].append(player)
+        # await set_up_game(web_client, channel_id)
+        print("added %s to list - 2" % user_id)
+        print(len(player_list[channel_id]))
+
 
 async def set_up_game(web_client, channel_id, plo=False):
     players = player_list[channel_id]
@@ -109,6 +116,27 @@ async def set_up_game(web_client, channel_id, plo=False):
         if i == 1:
             players += [players.pop(0)]
         await start_heads_up(web_client, channel_id)
+
+    if len(players) == 3:
+        await sendslack("Starting new game...", web_client, channel_id)
+        await sendslack("Starting stacks are %d" % newMoney, web_client, channel_id)
+        await sendslack(
+            "Big blind is %d, small blind is %d" % (bigblind, smallblind),
+            web_client,
+            channel_id,
+        )
+        players[0].dealer = True
+        players[1].bet = smallblind
+        players[1].money = players[1].money - smallblind
+        players[1].tocall = smallblind
+        players[2].bet = bigblind
+        players[2].money = players[2].money - bigblind
+        tab.pot = tab.pot + players[1].bet + players[2].bet
+        tab.highbet = bigblind
+        await sendslack(
+            "<@%s> is first to act" % players[0].name, web_client, channel_id
+        )
+        await sendslack("%d to call" % bigblind, web_client, channel_id)
 
 
 async def start_heads_up(web_client, channel_id):
@@ -330,23 +358,24 @@ async def bet_to_close(web_client, user_id, channel_id, bet):
                 "<@%s> calls. dealing flop:" % user_id, web_client, channel_id
             )
             await sendslack(tabcards, web_client, channel_id)
-            if len(active_players) == 2 and not active_players[0].dealer:
+            if active_players[0].dealer:
                 active_players += [active_players.pop(0)]
+                
             await sendslack(
-                "<@%s> is next to act" % active_players[1].name, web_client, channel_id
+                "<@%s> is next to act" % active_players[0].name, web_client, channel_id
             )
             await sendslack("pot is %s" % tab.pot, web_client, channel_id)
-            #active_players += [active_players.pop(0)]
             for name in active_players:
                 name.bet = 0
                 name.tocall = 0
                 name.reraise = 0
             tab.turn += 1
             tab.highbet = 0
-            if not active_players[1].dealer:
-                active_players += [active_players.pop(0)]
-                active_players[1].canclose = True
+            active_players[0].canclose = False
+            active_players[1].canclose = True
           
+
+
         elif tab.turn == 1:
             print("stage6")
             tab.cards.append(deck.draw(1))
@@ -356,21 +385,22 @@ async def bet_to_close(web_client, user_id, channel_id, bet):
                 "<@%s> calls. dealing turn:" % user_id, web_client, channel_id
             )
             await sendslack(tabcards, web_client, channel_id)
+            if active_players[0].dealer:
+                active_players += [active_players.pop(0)]
+            
             await sendslack(
-                "<@%s> is next to act" % active_players[1].name, web_client, channel_id
+                "<@%s> is next to act" % active_players[0].name, web_client, channel_id
             )
             await sendslack("pot is %s" % tab.pot, web_client, channel_id)
-            #active_players += [active_players.pop(0)]
             for name in active_players:
                 name.bet = 0
                 name.tocall = 0
                 name.reraise = 0
             tab.turn += 1
             tab.highbet = 0
-            if not active_players[1].dealer:
-                active_players += [active_players.pop(0)]
-                active_players[1].canclose = True
+            active_players[0].canclose = False
             active_players[1].canclose = True
+                
 
         elif tab.turn == 2:
             print("stage7")
@@ -378,25 +408,26 @@ async def bet_to_close(web_client, user_id, channel_id, bet):
             print(tab.cards)
             tabcards = Card.print_pretty_cards(tab.cards)
             await sendslack(
-                "<@%s> calls. dealing river:" % user_id, web_client, channel_id
+                "<@%s> calls. dealing river:" % user_id, web_client, channel_id 
             )
             await sendslack(tabcards, web_client, channel_id)
-            if len(active_players) == 2 and not active_players[0].dealer:
+            if active_players[0].dealer:
                 active_players += [active_players.pop(0)]
+                
             await sendslack(
-                "<@%s> is next to act" % active_players[1].name, web_client, channel_id
+                "<@%s> is next to act" % active_players[0].name, web_client, channel_id
             )
             await sendslack("pot is %s" % tab.pot, web_client, channel_id)
-            active_players += [active_players.pop(0)]
+        
             for name in active_players:
                 name.bet = 0
                 name.tocall = 0
                 name.reraise = 0
             tab.turn += 1
             tab.highbet = 0
-            if not active_players[1].dealer:
-                active_players += [active_players.pop(0)]
-                active_players[1].canclose = True
+            active_players[0].canclose = False
+            active_players[1].canclose = True
+
 
         elif tab.turn == 3:
             await sendslack("<@%s> calls." % user_id, web_client, channel_id)
@@ -454,23 +485,35 @@ async def bet_to_close(web_client, user_id, channel_id, bet):
                             name.bet = 0
                         await set_up_game(web_client, channel_id)
 
+
 async def find_best_plo_hand(user_id, channel_id):
     active_players = player_list[channel_id]
     tab = tab_list[channel_id]["table"]
     evaluator = Evaluator()
     board = tab.cards
+    print(board, "board")
     hand = [x.cards for x in active_players if x.name == user_id]
+    hand = hand[0]
+    print(hand, "hand")
     allboardtuple = list(itertools.combinations(board, 3))
+    print(allboardtuple)
     allboardlist = [list(x) for x in allboardtuple]
+    print(allboardlist)
     allhandtuple = list(itertools.combinations(hand, 2))
+    print(allhandtuple, "allhandtuple")
     allhandlist = [list(x) for x in allhandtuple]
+    print(allhandlist, "allhandlist")
     fullsetlist = []
+    print("just before loop")
     for i in allboardlist:
+        print(i, "inside loop i")
         for j in allhandlist:
+            print(j, "inside loop j")
             fullsetlist.append(evaluator.evaluate(i, j))
 
     fullsetlist.sort()
     return fullsetlist[0]
+
 
 async def calculate_plo(web_client, user_id, channel_id):
     active_players = player_list[channel_id]
