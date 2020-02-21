@@ -196,6 +196,10 @@ async def handle_fold(web_client, text, user_id, channel_id):
             for name in active_players:
                 name.cards.clear()
                 name.tocall = 0
+                name.canclose = False
+                name.bet = 0
+                name.dealer = False
+                name.reraise = 0
 
             if tab.plo:
                 print("setting up", tab.plo)
@@ -484,6 +488,8 @@ async def bet_to_close(web_client, user_id, channel_id, bet):
                             name.tocall = 0
                             name.dealer = False
                             name.bet = 0
+                            name.reraise = 0
+                            name.canclose = False
                         await set_up_game(web_client, channel_id)
 
 
@@ -568,6 +574,7 @@ async def calculate_plo(web_client, user_id, channel_id):
                 name.tocall = 0
                 name.dealer = False
                 name.bet = 0
+                name.reraise = 0
                 name.canclose = False
             await set_up_game(web_client, channel_id, plo=True)
 
